@@ -89,7 +89,8 @@ module Behold
     end
 
     def check_method(meth, *args, from:, to:)
-      from.public_send(meth, *args) == to
+      operator = to.is_a?(Numeric) ? :equal? : :==
+      from.public_send(meth, *args).public_send(operator, to)
     rescue StandardError, SyntaxError
       nil
     end

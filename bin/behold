@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+require 'behold'
+
+puts Behold.code eval(ARGV.shift), eval(ARGV.shift)

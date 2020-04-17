@@ -33,7 +33,7 @@ describe Behold do
     end
 
     it 'works with classes' do
-      assert_equal Behold.code(Object, 'Object'), ["Object.inspect", "Object.to_s", "Object.name"]
+      assert_equal Behold.code(Object, 'Object'), ['Object.inspect', 'Object.to_s', 'Object.name']
     end
   end
 end

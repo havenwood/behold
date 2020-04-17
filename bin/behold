@@ -2,5 +2,6 @@
 # frozen_string_literal: true
 
 require 'behold'
+require 'literal_parser'
 
-puts Behold.code eval(ARGV.shift), eval(ARGV.shift)
+puts Behold.code LiteralParser.parse(ARGV.shift), LiteralParser.parse(ARGV.shift)

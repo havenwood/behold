@@ -16,6 +16,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = %w[lib]
   spec.executables   = %w[behold]
 
+  spec.add_dependency 'literal_parser', '~> 1'
   spec.add_development_dependency 'minitest', '~> 5'
   spec.add_development_dependency 'minitest-proveit', '~> 1'
   spec.add_development_dependency 'rake', '~> 13'

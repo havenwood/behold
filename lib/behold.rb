@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'set'
 require 'timeout'
 require_relative 'behold/arity_range'
 require_relative 'behold/version'

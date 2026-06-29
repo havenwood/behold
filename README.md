@@ -46,7 +46,7 @@ puts Behold.code 'BBQ', ['B', 'B', 'Q']
 
 ## Multiple Examples
 
-Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators, substring replacements and numeric deltas from the pair, so it can find calls whose arguments are not in its fuzz list.
+Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators, substring replacements and numeric deltas from the pair, and synthesizes blocks for higher-order methods like `map` and `select`, so it can find calls beyond its fuzz list.
 
 ```ruby
 Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']
@@ -57,6 +57,12 @@ Behold.code [1, 2, 3], '1::2::3'
 
 Behold.code 'foo bar', 'foo::bar'
 #=> ["\"foo bar\".gsub(\" \", \"::\")", "\"foo bar\".sub(\" \", \"::\")"]
+
+Behold.code [1, 2, 3], [1, 4, 9]
+#=> ["[1, 2, 3].map { _1 ** 2 }", "[1, 2, 3].flat_map { _1 ** 2 }"]
+
+Behold.code %w[a bb ccc], [1, 2, 3]
+#=> ["[\"a\", \"bb\", \"ccc\"].map(&:length)", "[\"a\", \"bb\", \"ccc\"].map(&:size)"]
 ```
 
 A `timeout:` keyword overrides the search budget in seconds (the default is 3).

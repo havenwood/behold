@@ -4,11 +4,11 @@ module Behold
   module ArityRange
     refine Method do
       def arity_range
-        args = parameters.map(&:first)
-        req = args.count :req
-        keyreq = args.count :keyreq
-        opt = args.include?(:rest) ? Float::INFINITY : args.count(:opt)
-        keyopt = args.include?(:keyrest) ? Float::INFINITY : args.count(:key)
+        kinds = parameters.map(&:first)
+        req = kinds.count :req
+        keyreq = kinds.count :keyreq
+        opt = kinds.include?(:rest) ? Float::INFINITY : kinds.count(:opt)
+        keyopt = kinds.include?(:keyrest) ? Float::INFINITY : kinds.count(:key)
 
         {arguments: req..req + opt, keywords: keyreq..keyreq + keyopt}
       end

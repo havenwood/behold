@@ -9,7 +9,7 @@ module Behold
 
   FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry
                  public_send __send__ send].freeze
-  EMPTY_FUZZ = [nil].freeze
+  NO_ARG_FUZZ = [[]].freeze
   FUZZ = [*0..10,
           -1.0, 0.0, 1.0,
           [], {},
@@ -23,15 +23,17 @@ module Behold
           nil..nil, 1..10, 'a'..'f',
           Time.now, Object, Module, Kernel,
           *-10..-1, *11..101, *-101..11, 1_000, 10_000, -1_000, -10_000].freeze
-  DOUBLE_FUZZ = FUZZ.repeated_combination(2).to_a.freeze
-  FUZZES = [EMPTY_FUZZ, FUZZ, DOUBLE_FUZZ].freeze
+  SINGLE_ARG_FUZZ = FUZZ.map { |arg| [arg] }.freeze
+  DOUBLE_ARG_FUZZ = FUZZ.repeated_permutation(2).to_a.freeze
+  FUZZES = [NO_ARG_FUZZ, SINGLE_ARG_FUZZ, DOUBLE_ARG_FUZZ].freeze
   RESULT_COUNT = 6
   DEFAULT_TIMEOUT = 3
 
   class << self
     def code(from, to)
       call(from, to).map do |meth, *args|
-        "#{from.inspect}.#{meth}#{"(#{args.map(&:inspect).join ', '})" unless args.empty?}"
+        arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
+        "#{from.inspect}.#{meth}#{arguments}"
       end
     end
 
@@ -47,7 +49,8 @@ module Behold
 
     private
 
-    def best_matches(lazy_tries, matches = [])
+    def best_matches(lazy_tries)
+      matches = []
       Timeout.timeout DEFAULT_TIMEOUT do
         lazy_matches(lazy_tries).each { |match| matches << match }
       end
@@ -58,62 +61,51 @@ module Behold
     end
 
     def match(from:, to:, fuzz:, arg_count:)
+      candidates = arg_methods(soft_dup(from), arg_count)
       fuzz.lazy.flat_map do |args|
-        found = arg_methods(soft_dup(from), arg_count).select do |meth|
-          case arg_count
-          when 1
-            check_method(meth, args, from: soft_dup(from), to: to)
-          else
-            check_method(meth, *args, from: soft_dup(from), to: to)
-          end
-        end
-        found = found.with_object(args) if args
-
-        found.map { |*send_this| [*send_this].flatten }
+        candidates
+          .select { |meth| check_method(meth, *args, from: soft_dup(from), to: to) }
+          .map { |meth| [meth, *args] }
       end
     end
 
     def black_hole
+      old_stdout = $stdout
+      old_stderr = $stderr
       File.open File::NULL, File::APPEND do |dev_null|
         $stdout = $stderr = dev_null
 
         yield
       ensure
-        $stdout = STDOUT
-        $stderr = STDERR
+        $stdout = old_stdout
+        $stderr = old_stderr
       end
     end
 
-    def lazy_matches(matches)
-      matches.reduce(:+).lazy.take(RESULT_COUNT)
+    def lazy_matches(tries)
+      tries.reduce(:+).lazy.take(RESULT_COUNT)
     end
 
     def check_method(meth, *args, from:, to:)
-      operator = to.is_a?(Numeric) ? :equal? : :==
-      from.public_send(meth, *args).public_send(operator, to)
+      operator = to.is_a?(Numeric) ? :eql? : :==
+      from.public_send(meth, *args.map { |arg| soft_dup(arg) }).public_send(operator, to)
     rescue StandardError, SyntaxError
       nil
     end
 
     def soft_dup(from)
       duped_from = from.dup
-      return from unless from == from.dup
-
-      duped_from
-    rescue FrozenError
+      from == duped_from ? duped_from : from
+    rescue StandardError
       from
     end
 
-    def arg_methods(object, args)
+    def arg_methods(object, arg_count)
       object.public_methods.select do |meth|
         next if FORBIDDEN.include? meth
 
-        meth_arity_range = object.public_method(meth).arity_range
-        next unless meth_arity_range.fetch(:keywords).min.zero?
-
-        mandatory_args, allowable_args = meth_arity_range.fetch(:arguments).minmax
-
-        mandatory_args <= args && allowable_args >= args
+        arity = object.public_method(meth).arity_range
+        arity.fetch(:keywords).min.zero? && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
     end
   end

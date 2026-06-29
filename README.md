@@ -1,5 +1,7 @@
 # Behold
 
+Give Behold two values and it searches for Ruby method calls that turn the first into the second.
+
 ## Warning
 
 *THIS IS UNSAFE, EXPERIMENTAL CODE.*

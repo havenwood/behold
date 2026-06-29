@@ -3,23 +3,25 @@
 require_relative 'helper'
 
 describe Behold do
+  timeout = 1.5
+
   cases = [[42, 42], [42, 43], ['shannon', 'Shannon'], [Object, 'Object'],
            [5, 25], [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
 
   cases.each do |from, to|
     it "reproduces #{to.inspect} from #{from.inspect}" do
-      sources = Behold.code(from, to)
+      sources = Behold.code(from, to, timeout:)
       refute_empty sources
       sources.each { |source| assert_equal to, eval(source) }
     end
   end
 
   it 'accepts a custom timeout' do
-    assert_equal 25, eval(Behold.code(5, 25, timeout: 1).first)
+    assert_equal 25, eval(Behold.code(5, 25, timeout:).first)
   end
 
   it 'narrows to transforms that satisfy every example' do
-    tuples = Behold.call(5, 25, [3, 9])
+    tuples = Behold.call(5, 25, [3, 9], timeout:)
     refute_empty tuples
     tuples.each do |meth, *args|
       assert_equal 25, 5.public_send(meth, *args)
@@ -28,19 +30,19 @@ describe Behold do
   end
 
   it 'derives separators from the example' do
-    sources = Behold.code([1, 2, 3], '1::2::3')
+    sources = Behold.code([1, 2, 3], '1::2::3', timeout:)
     refute_empty sources
     sources.each { |source| assert_equal '1::2::3', eval(source) }
   end
 
   it 'derives a numeric delta the fuzz list lacks' do
-    sources = Behold.code(5, 1_000_000)
+    sources = Behold.code(5, 1_000_000, timeout:)
     refute_empty sources
     sources.each { |source| assert_equal 1_000_000, eval(source) }
   end
 
   it 'derives a replacement from a string pair' do
-    sources = Behold.code('foo bar', 'foo::bar')
+    sources = Behold.code('foo bar', 'foo::bar', timeout:)
     refute_empty sources
     sources.each { |source| assert_equal 'foo::bar', eval(source) }
   end

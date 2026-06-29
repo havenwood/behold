@@ -33,15 +33,33 @@ Behold.call 1, 2
 #=> [[:next], [:succ], [:<<, 1], [:+, 1], [:*, 2], [:lcm, 2]]
 
 Behold.call 'BBQ', ['B', 'B', 'Q']
-#=> [[:chars], [:grapheme_clusters], [:split, ""], [:rpartition, "B"], [:lines, "B"], [:split, //]]
+#=> [[:split, ""], [:chars], [:grapheme_clusters], [:rpartition, "B"], [:lines, "B"], [:split, //]]
 
 puts Behold.code 'BBQ', ['B', 'B', 'Q']
+#>> "BBQ".split("")
 #>> "BBQ".chars
 #>> "BBQ".grapheme_clusters
-#>> "BBQ".split("")
 #>> "BBQ".rpartition("B")
 #>> "BBQ".lines("B")
 #>> "BBQ".split(//)
+```
+
+## Multiple Examples
+
+Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators from the pair, so it can find calls whose arguments are not in its fuzz list.
+
+```ruby
+Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']
+#=> [[:capitalize], [:capitalize!]]
+
+Behold.code [1, 2, 3], '1::2::3'
+#=> ["[1, 2, 3].*(\"::\")", "[1, 2, 3].join(\"::\")"]
+```
+
+A `timeout:` keyword overrides the search budget in seconds (the default is 3).
+
+```ruby
+Behold.call 1, 2, timeout: 1
 ```
 
 ## Command Line Examples

@@ -6,4 +6,5 @@ task default: %w[test]
 
 Rake::TestTask.new do |spec|
   spec.pattern = 'spec/*_spec.rb'
+  spec.warning = false
 end

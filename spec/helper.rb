@@ -8,6 +8,10 @@ require 'minitest/autorun'
 require 'minitest/hell'
 require 'minitest/pride'
 
+module Warning
+  def warn(*) = nil
+end
+
 module Minitest
   class Test
     prove_it!

@@ -7,7 +7,7 @@ require_relative 'behold/version'
 module Behold
   using ArityRange
 
-  FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry
+  FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry rake_extension
                  public_send __send__ send
                  shuffle shuffle! sample hash object_id __id__].freeze
   NO_ARG_FUZZ = [[]].freeze

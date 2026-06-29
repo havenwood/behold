@@ -46,4 +46,25 @@ describe Behold do
     refute_empty sources
     sources.each { |source| assert_equal 'foo::bar', eval(source) }
   end
+
+  it 'ignores candidates that raise non-standard exceptions' do
+    source = Class.new do
+      def assert_empty = raise Minitest::Assertion, 'nope'
+      def answer = 42
+    end.new
+
+    assert_includes Behold.call(source, 42, timeout:), [:answer]
+  end
+
+  it 'keeps timeout errors from candidate calls' do
+    source = Class.new do
+      def stall = sleep
+    end.new
+
+    assert_raises Timeout::Error do
+      Timeout.timeout(0.01) do
+        Behold.send(:check_method, :stall, from: source, to: :never)
+      end
+    end
+  end
 end

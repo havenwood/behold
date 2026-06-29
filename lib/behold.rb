@@ -10,6 +10,7 @@ module Behold
   FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry rake_extension
                  public_send __send__ send
                  shuffle shuffle! sample hash object_id __id__].freeze
+  FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
   NO_ARG_FUZZ = [[]].freeze
   FUZZ = [*0..10,
           -1.0, 0.0, 1.0,
@@ -92,7 +93,9 @@ module Behold
     def check_method(meth, *args, from:, to:)
       operator = to.is_a?(Numeric) ? :eql? : :==
       from.public_send(meth, *args.map { |arg| soft_dup(arg) }).public_send(operator, to)
-    rescue StandardError, SyntaxError
+    rescue Timeout::Error, Timeout::ExitException, NoMemoryError, SignalException, SystemExit
+      raise
+    rescue Exception
       nil
     end
 
@@ -107,7 +110,10 @@ module Behold
       object.public_methods.select do |meth|
         next if FORBIDDEN.include? meth
 
-        arity = object.public_method(meth).arity_range
+        method = object.public_method(meth)
+        next if FORBIDDEN_OWNERS.include? method.owner.name
+
+        arity = method.arity_range
         arity.fetch(:keywords).min.zero? && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
     end

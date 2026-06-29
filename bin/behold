@@ -4,4 +4,13 @@
 require 'behold'
 require 'literal_parser'
 
-puts Behold.code LiteralParser.parse(ARGV.shift), LiteralParser.parse(ARGV.shift)
+abort 'usage: behold FROM TO' if ARGV.size < 2
+
+begin
+  from = LiteralParser.parse ARGV.shift
+  to = LiteralParser.parse ARGV.shift
+rescue SyntaxError => e
+  abort "behold: #{e.message}"
+end
+
+puts Behold.code(from, to)

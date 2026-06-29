@@ -31,11 +31,31 @@ module Behold
   RESULT_COUNT = 6
   DEFAULT_TIMEOUT = 3
 
+  BLOCK_METHODS = %i[map flat_map select reject filter_map sort_by min_by max_by
+                     find count take_while drop_while].freeze
+  Block = Data.define(:source, :to_proc) do
+    def inspect = source
+    def render = source.start_with?('&') ? "(#{source})" : " #{source}"
+  end
+  BLOCKS = [*%i[upcase downcase capitalize swapcase reverse to_s to_i to_a chars
+                length size abs succ pred even? odd? zero? positive? negative?
+                ord chr strip chomp sort uniq sum min max first last]
+              .map { |sym| Block.new("&:#{sym}", sym.to_proc) },
+            Block.new('{ _1 ** 2 }', ->(element) { element**2 }),
+            Block.new('{ _1 * 2 }', ->(element) { element * 2 }),
+            Block.new('{ _1 + 1 }', ->(element) { element + 1 }),
+            Block.new('{ -_1 }', ->(element) { -element })].freeze
+
   class << self
     def code(from, to, *more, timeout: DEFAULT_TIMEOUT)
+      receiver = from.inspect
       call(from, to, *more, timeout: timeout).map do |meth, *args|
-        arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
-        "#{from.inspect}.#{meth}#{arguments}"
+        if args.first.is_a?(Block)
+          "#{receiver}.#{meth}#{args.first.render}"
+        else
+          arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
+          "#{receiver}.#{meth}#{arguments}"
+        end
       end
     end
 
@@ -47,7 +67,7 @@ module Behold
           match(examples: examples, fuzz: fuzz, arg_count: index)
         end
 
-        best_matches([separators, no_args, one_arg, derived_tuples(examples), two_args], timeout)
+        best_matches([separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), two_args], timeout)
       end
     end
 
@@ -65,7 +85,7 @@ module Behold
     end
 
     def match(examples:, fuzz:, arg_count:)
-      candidates = arg_methods(soft_dup(examples.first.first), arg_count)
+      candidates = arg_methods(soft_dup(examples.dig(0, 0)), arg_count)
       fuzz.lazy.flat_map do |args|
         candidates
           .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: soft_dup(from), to: to) } }
@@ -90,9 +110,9 @@ module Behold
       tries.reduce(:+).lazy.uniq.take(RESULT_COUNT)
     end
 
-    def check_method(meth, *args, from:, to:)
+    def check_method(meth, *args, from:, to:, &block)
       operator = to.is_a?(Numeric) ? :eql? : :==
-      from.public_send(meth, *args.map { |arg| soft_dup(arg) }).public_send(operator, to)
+      from.public_send(meth, *args.map { |arg| soft_dup(arg) }, &block).public_send(operator, to)
     rescue Timeout::Error, Timeout::ExitException, NoMemoryError, SignalException, SystemExit
       raise
     rescue Exception
@@ -148,6 +168,14 @@ module Behold
       from, to = examples.first
       (numeric_tuples(from, to) + replacement_tuples(from, to)).lazy.select do |meth, *args|
         examples.all? { |ex_from, ex_to| check_method(meth, *args, from: soft_dup(ex_from), to: ex_to) }
+      end
+    end
+
+    def block_tuples(examples)
+      return [] unless examples.dig(0, 0).respond_to?(:map)
+
+      BLOCK_METHODS.product(BLOCKS).lazy.filter_map do |meth, block|
+        [meth, block] if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to: to, &block) }
       end
     end
 

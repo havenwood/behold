@@ -47,6 +47,11 @@ describe Behold do
     sources.each { |source| assert_equal 'foo::bar', eval(source) }
   end
 
+  it 'synthesizes blocks' do
+    assert_equal [1, 4, 9], eval(Behold.code([1, 2, 3], [1, 4, 9], timeout:).first)
+    assert_equal [1, 2, 3], eval(Behold.code(%w[a bb ccc], [1, 2, 3], timeout:).first)
+  end
+
   it 'ignores candidates that raise non-standard exceptions' do
     source = Class.new do
       def assert_empty = raise Minitest::Assertion, 'nope'

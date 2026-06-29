@@ -8,7 +8,8 @@ module Behold
   using ArityRange
 
   FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry
-                 public_send __send__ send].freeze
+                 public_send __send__ send
+                 shuffle shuffle! sample hash object_id __id__].freeze
   NO_ARG_FUZZ = [[]].freeze
   FUZZ = [*0..10,
           -1.0, 0.0, 1.0,
@@ -22,7 +23,7 @@ module Behold
           nil, true, false,
           nil..nil, 1..10, 'a'..'f',
           Time.now, Object, Module, Kernel,
-          *-10..-1, *11..101, *-101..11, 1_000, 10_000, -1_000, -10_000].freeze
+          *-10..-1, *11..101, *-101..11, 1_000, 10_000, -1_000, -10_000].uniq.freeze
   SINGLE_ARG_FUZZ = FUZZ.map { |arg| [arg] }.freeze
   DOUBLE_ARG_FUZZ = FUZZ.repeated_permutation(2).to_a.freeze
   FUZZES = [NO_ARG_FUZZ, SINGLE_ARG_FUZZ, DOUBLE_ARG_FUZZ].freeze
@@ -30,28 +31,30 @@ module Behold
   DEFAULT_TIMEOUT = 3
 
   class << self
-    def code(from, to)
-      call(from, to).map do |meth, *args|
+    def code(from, to, *more, timeout: DEFAULT_TIMEOUT)
+      call(from, to, *more, timeout: timeout).map do |meth, *args|
         arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
         "#{from.inspect}.#{meth}#{arguments}"
       end
     end
 
-    def call(from, to)
+    def call(from, to, *more, timeout: DEFAULT_TIMEOUT)
+      examples = [[from, to], *more]
       black_hole do
+        derived = match(examples: examples, fuzz: derived_args(examples), arg_count: 1)
         lazy_tries = FUZZES.map.with_index do |fuzz, index|
-          match(from: from, to: to, fuzz: fuzz, arg_count: index)
+          match(examples: examples, fuzz: fuzz, arg_count: index)
         end
 
-        best_matches(lazy_tries)
+        best_matches([derived, *lazy_tries], timeout)
       end
     end
 
     private
 
-    def best_matches(lazy_tries)
+    def best_matches(lazy_tries, timeout)
       matches = []
-      Timeout.timeout DEFAULT_TIMEOUT do
+      Timeout.timeout timeout do
         lazy_matches(lazy_tries).each { |match| matches << match }
       end
 
@@ -60,11 +63,11 @@ module Behold
       matches
     end
 
-    def match(from:, to:, fuzz:, arg_count:)
-      candidates = arg_methods(soft_dup(from), arg_count)
+    def match(examples:, fuzz:, arg_count:)
+      candidates = arg_methods(soft_dup(examples.first.first), arg_count)
       fuzz.lazy.flat_map do |args|
         candidates
-          .select { |meth| check_method(meth, *args, from: soft_dup(from), to: to) }
+          .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: soft_dup(from), to: to) } }
           .map { |meth| [meth, *args] }
       end
     end
@@ -83,7 +86,7 @@ module Behold
     end
 
     def lazy_matches(tries)
-      tries.reduce(:+).lazy.take(RESULT_COUNT)
+      tries.reduce(:+).lazy.uniq.take(RESULT_COUNT)
     end
 
     def check_method(meth, *args, from:, to:)
@@ -107,6 +110,32 @@ module Behold
         arity = object.public_method(meth).arity_range
         arity.fetch(:keywords).min.zero? && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
+    end
+
+    def derived_args(examples)
+      examples.flat_map { |from, to| [join_separator(from, to), split_separator(from, to)] }
+              .compact.uniq.map { |arg| [arg] }
+    end
+
+    def join_separator(from, to)
+      return unless to.is_a?(String) && from.respond_to?(:map)
+
+      parts = from.map(&:to_s)
+      head = parts.first
+      return unless parts.size >= 2 && parts.none?(&:empty?) && to.start_with?(head)
+
+      finish = to.index(parts[1], head.length)
+      to[head.length...finish] if finish
+    end
+
+    def split_separator(from, to)
+      return unless from.is_a?(String) && to.is_a?(Array) && to.size >= 2
+
+      head, nxt = to[0].to_s, to[1].to_s
+      return unless from.start_with?(head)
+
+      finish = from.index(nxt, head.length)
+      from[head.length...finish] if finish
     end
   end
 end

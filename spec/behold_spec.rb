@@ -32,4 +32,16 @@ describe Behold do
     refute_empty sources
     sources.each { |source| assert_equal '1::2::3', eval(source) }
   end
+
+  it 'derives a numeric delta the fuzz list lacks' do
+    sources = Behold.code(5, 1_000_000)
+    refute_empty sources
+    sources.each { |source| assert_equal 1_000_000, eval(source) }
+  end
+
+  it 'derives a replacement from a string pair' do
+    sources = Behold.code('foo bar', 'foo::bar')
+    refute_empty sources
+    sources.each { |source| assert_equal 'foo::bar', eval(source) }
+  end
 end

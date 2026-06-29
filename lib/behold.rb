@@ -41,12 +41,12 @@ module Behold
     def call(from, to, *more, timeout: DEFAULT_TIMEOUT)
       examples = [[from, to], *more]
       black_hole do
-        derived = match(examples: examples, fuzz: derived_args(examples), arg_count: 1)
-        lazy_tries = FUZZES.map.with_index do |fuzz, index|
+        separators = match(examples: examples, fuzz: derived_args(examples), arg_count: 1)
+        no_args, one_arg, two_args = FUZZES.map.with_index do |fuzz, index|
           match(examples: examples, fuzz: fuzz, arg_count: index)
         end
 
-        best_matches([derived, *lazy_tries], timeout)
+        best_matches([separators, no_args, one_arg, derived_tuples(examples), two_args], timeout)
       end
     end
 
@@ -136,6 +136,37 @@ module Behold
 
       finish = from.index(nxt, head.length)
       from[head.length...finish] if finish
+    end
+
+    def derived_tuples(examples)
+      from, to = examples.first
+      (numeric_tuples(from, to) + replacement_tuples(from, to)).lazy.select do |meth, *args|
+        examples.all? { |ex_from, ex_to| check_method(meth, *args, from: soft_dup(ex_from), to: ex_to) }
+      end
+    end
+
+    def numeric_tuples(from, to)
+      return [] unless from.is_a?(Numeric) && to.is_a?(Numeric)
+
+      tuples = [[:+, to - from], [:-, from - to]]
+      tuples << [:*, to / from] unless from.zero?
+      tuples << [:/, from / to] unless to.zero?
+      tuples
+    end
+
+    def replacement_tuples(from, to)
+      return [] unless from.is_a?(String) && to.is_a?(String) && from != to
+
+      old, new = diff_span(from, to)
+      old.empty? ? [] : [[:gsub, old, new], [:sub, old, new]]
+    end
+
+    def diff_span(from, to)
+      prefix = 0
+      prefix += 1 while prefix < from.length && prefix < to.length && from[prefix] == to[prefix]
+      suffix = 0
+      suffix += 1 while suffix < from.length - prefix && suffix < to.length - prefix && from[-1 - suffix] == to[-1 - suffix]
+      [from[prefix...(from.length - suffix)], to[prefix...(to.length - suffix)]]
     end
   end
 end

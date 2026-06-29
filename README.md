@@ -46,7 +46,7 @@ puts Behold.code 'BBQ', ['B', 'B', 'Q']
 
 ## Multiple Examples
 
-Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators from the pair, so it can find calls whose arguments are not in its fuzz list.
+Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators, substring replacements and numeric deltas from the pair, so it can find calls whose arguments are not in its fuzz list.
 
 ```ruby
 Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']
@@ -54,6 +54,9 @@ Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']
 
 Behold.code [1, 2, 3], '1::2::3'
 #=> ["[1, 2, 3].*(\"::\")", "[1, 2, 3].join(\"::\")"]
+
+Behold.code 'foo bar', 'foo::bar'
+#=> ["\"foo bar\".gsub(\" \", \"::\")", "\"foo bar\".sub(\" \", \"::\")"]
 ```
 
 A `timeout:` keyword overrides the search budget in seconds (the default is 3).

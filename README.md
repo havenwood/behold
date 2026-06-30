@@ -6,7 +6,7 @@ Give Behold two values and it searches for Ruby method calls that turn the first
 
 *THIS IS UNSAFE, EXPERIMENTAL CODE.*
 
-This gem runs arbitrary code and can be capriciously destructive. Be warned!
+This gem runs arbitrary code and can be capriciously destructive. Be warned! A denylist blocks the most catastrophic methods (process control, `eval`, file removal), but it cannot be exhaustive. Passing a module such as `File`, `Kernel` or `FileUtils` as a value is especially dangerous, since the search then fuzzes its public methods.
 
 ## Installation
 
@@ -75,6 +75,8 @@ Behold.call 1, 2, timeout: 1
 ```
 
 ## Command Line Examples
+
+Both arguments are parsed as Ruby literals (numbers, strings, symbols, arrays, hashes, ranges, regexps) or constants.
 
 ```sh
 behold 21 42

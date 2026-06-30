@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'helper'
+require 'behold/literal'
 
 describe Behold do
   timeout = 1.5
@@ -113,6 +114,14 @@ describe Behold do
     refute_includes Behold.send(:arg_methods, Kernel, 1).to_a, :system
     refute_includes Behold.send(:arg_methods, File, 1).to_a, :unlink
     refute_includes Behold.send(:arg_methods, File, 1).to_a, :open
+    refute_includes Behold.send(:arg_methods, File, 1).to_a, :delete
+    refute_includes Behold.send(:arg_methods, File, 1).to_a, :binwrite
+    refute_includes Behold.send(:arg_methods, IO, 1).to_a, :popen
+    refute_includes Behold.send(:arg_methods, Process, 1).to_a, :kill
+  end
+
+  it 'keeps a benign method that shares a name with a dangerous module method' do
+    assert_includes Behold.send(:arg_methods, [1, 2, 3], 1).to_a, :delete
   end
 
   it 'deep-dups so the search cannot mutate a nested from collection' do
@@ -126,6 +135,24 @@ describe Behold do
   it 'derives keyword arguments the fuzz list lacks' do
     results = Behold.send(:kwarg_tuples, [[2.5, 3]]).to_a
     assert_includes results, Behold::Call.new(meth: :round, kwargs: { half: :up })
+  end
+
+  it 'tries methods with a required keyword' do
+    receiver = Class.new { def choose(half:) = half == :up ? 99 : 0 }.new
+    results = Behold.send(:kwarg_tuples, [[receiver, 99]]).to_a
+    assert_includes results, Behold::Call.new(meth: :choose, kwargs: { half: :up })
+  end
+end
+
+describe Behold::Literal do
+  it 'wraps an invalid regexp literal as ArgumentError' do
+    assert_raises(ArgumentError) { Behold::Literal.parse('/\p{Nope}/') }
+  end
+
+  it 'rejects an autoloaded constant' do
+    scope = Module.new
+    scope.autoload(:Pending, '/does/not/exist')
+    assert_raises(ArgumentError) { Behold::Literal.send(:constant, scope, :Pending) }
   end
 end
 

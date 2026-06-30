@@ -20,7 +20,7 @@ module Behold
           node.value
         when Prism::StringNode then node.unescaped
         when Prism::SymbolNode then node.unescaped.to_sym
-        when Prism::RegularExpressionNode then Regexp.new(node.unescaped, node.options)
+        when Prism::RegularExpressionNode then regexp(node)
         when Prism::TrueNode then true
         when Prism::FalseNode then false
         when Prism::NilNode then nil
@@ -36,8 +36,14 @@ module Behold
         end
       end
 
+      def regexp(node)
+        Regexp.new(node.unescaped, node.options)
+      rescue RegexpError => error
+        raise ArgumentError, error.message
+      end
+
       def constant(scope, name)
-        raise ArgumentError, "unknown constant: #{name}" unless scope.is_a?(Module) && scope.const_defined?(name, false)
+        raise ArgumentError, "unknown constant: #{name}" unless scope.is_a?(Module) && scope.const_defined?(name, false) && !scope.autoload?(name, false)
 
         scope.const_get(name, false)
       end

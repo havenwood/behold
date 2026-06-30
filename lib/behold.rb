@@ -18,6 +18,7 @@ module Behold
                  rm rm_rf rm_r remove_entry_secure
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
+  FORBIDDEN_OWNER_CLASSES = [Dir, File, IO, Process].map(&:singleton_class).freeze
   NO_ARG_FUZZ = [[]].freeze
   FUZZ = [*0..10,
           -1.0, 0.0, 1.0,
@@ -144,15 +145,16 @@ module Behold
       end
     end
 
-    def arg_methods(object, arg_count)
+    def arg_methods(object, arg_count, keywords: 0)
       object.public_methods.select do |meth|
         next if FORBIDDEN.include? meth
 
         method = object.public_method(meth)
-        next if FORBIDDEN_OWNERS.include? method.owner.name
+        owner = method.owner
+        next if FORBIDDEN_OWNERS.include?(owner.name) || FORBIDDEN_OWNER_CLASSES.include?(owner)
 
         arity = method.arity_range
-        arity.fetch(:keywords).zero? && arity.fetch(:arguments).cover?(arg_count)
+        arity.fetch(:keywords) <= keywords && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
     end
 
@@ -198,7 +200,7 @@ module Behold
     end
 
     def kwarg_tuples(examples)
-      candidates = arg_methods(soft_dup(examples.dig(0, 0)), 0)
+      candidates = arg_methods(soft_dup(examples.dig(0, 0)), 0, keywords: KWARGS.map(&:size).max)
       candidates.flat_map do |meth|
         KWARGS.filter_map do |kwargs|
           Call.new(meth:, kwargs:) if examples.all? { |from, to| check_method(meth, from: deep_dup(from), to:, kwargs:) }

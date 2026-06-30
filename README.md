@@ -48,7 +48,7 @@ puts Behold.code 'BBQ', ['B', 'B', 'Q']
 
 ## Multiple Examples
 
-Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators, substring replacements and numeric deltas from the pair, and synthesizes blocks for higher-order methods like `map` and `select`, so it can find calls beyond its fuzz list.
+Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy every one, dropping coincidences a single example allows. It also derives arguments such as separators, substring replacements and numeric deltas from the pair, synthesizes blocks for higher-order methods like `map` and `select`, and tries a curated set of keyword arguments such as `round(half: :up)`, so it can find calls beyond its fuzz list.
 
 ```ruby
 Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']

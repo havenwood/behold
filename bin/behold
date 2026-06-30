@@ -2,14 +2,14 @@
 # frozen_string_literal: true
 
 require 'behold'
-require 'literal_parser'
+require 'behold/literal'
 
 abort 'usage: behold FROM TO' if ARGV.size < 2
 
 begin
-  from = LiteralParser.parse ARGV.shift
-  to = LiteralParser.parse ARGV.shift
-rescue SyntaxError => e
+  from = Behold::Literal.parse ARGV.shift
+  to = Behold::Literal.parse ARGV.shift
+rescue ArgumentError => e
   abort "behold: #{e.message}"
 end
 

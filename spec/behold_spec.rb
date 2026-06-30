@@ -2,12 +2,14 @@
 
 require_relative 'helper'
 require 'behold/literal'
+require 'fileutils'
 
 describe Behold do
   timeout = 20
 
   cases = [[42, 42], [42, 43], ['shannon', 'Shannon'], [Object, 'Object'],
-           [5, 25], [5, Float::INFINITY], [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
+           [5, 25], [5, Float::INFINITY], [Float::INFINITY, 'Infinity'],
+           [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
 
   cases.each do |from, to|
     it "reproduces #{to.inspect} from #{from.inspect}" do
@@ -121,6 +123,10 @@ describe Behold do
     refute_includes Behold.send(:arg_methods, Object, 1).to_a, :remove_method
     refute_includes Behold.send(:arg_methods, Object, 1).to_a, :define_method
     refute_includes Behold.send(:arg_methods, Object, 1).to_a, :include
+    refute_includes Behold.send(:arg_methods, Object, 1).to_a, :instance_exec
+    refute_includes Behold.send(:arg_methods, FileUtils, 1).to_a, :rmtree
+    refute_includes Behold.send(:arg_methods, FileUtils, 1).to_a, :remove_entry
+    refute_includes Behold.send(:arg_methods, FileUtils, 1).to_a, :touch
   end
 
   it 'keeps a benign method that shares a name with a dangerous module method' do

@@ -11,7 +11,7 @@ module Behold
 
   FORBIDDEN = %i[__binding__ byebug debugger pry rake_extension
                  public_send __send__ send
-                 eval instance_eval module_eval class_eval `
+                 eval instance_eval module_eval class_eval instance_exec module_exec class_exec `
                  system exec spawn fork syscall exit exit! abort at_exit trap
                  load require require_relative autoload
                  open write display unlink mkdir rmdir chmod chown
@@ -26,7 +26,7 @@ module Behold
                  freeze deprecate_constant set_temporary_name
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
-  FORBIDDEN_OWNER_CLASSES = [Dir, File, IO, Process].map(&:singleton_class).freeze
+  FORBIDDEN_OWNER_NAMES = %w[Dir File IO Process FileUtils].freeze
   NO_ARG_FUZZ = [[]].freeze
   FUZZ = [*0..10,
           -1.0, 0.0, 1.0,
@@ -70,7 +70,7 @@ module Behold
 
   class << self
     def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
-      receiver = from.inspect
+      receiver = Call.literal(from)
       call(from, to, *more, count:, timeout:).map { |result| result.render(receiver) }
     end
 
@@ -160,12 +160,17 @@ module Behold
         next if FORBIDDEN.include? meth
 
         method = object.public_method(meth)
-        owner = method.owner
-        next if FORBIDDEN_OWNERS.include?(owner.name) || FORBIDDEN_OWNER_CLASSES.include?(owner)
+        next if forbidden_owner?(method.owner)
 
         arity = method.arity_range
         arity.fetch(:keywords) <= keywords && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
+    end
+
+    def forbidden_owner?(owner)
+      return true if FORBIDDEN_OWNERS.include?(owner.name)
+
+      owner.singleton_class? && (attached = owner.attached_object).is_a?(Module) && FORBIDDEN_OWNER_NAMES.include?(attached.name)
     end
 
     def derived_args(examples)

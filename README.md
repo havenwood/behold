@@ -67,6 +67,18 @@ Behold.code %w[a bb ccc], [1, 2, 3]
 #=> ["[\"a\", \"bb\", \"ccc\"].map(&:length)", "[\"a\", \"bb\", \"ccc\"].map(&:size)"]
 ```
 
+## Two-Step Fallbacks
+
+When no single call turns `from` into `to`, Behold falls back to a derived two-step chain. Direct calls always win, so a chain only appears when nothing simpler matches. The first step can coerce across types (`to_f`, `to_r`, `to_c`), so a stringified number can be parsed before arithmetic. `Behold.call` returns these as `Behold::Chain` values and `Behold.code` renders them as source.
+
+```ruby
+Behold.code 'hello', 'OLLEH', ['world', 'DLROW']
+#=> ["\"hello\".reverse.upcase", "\"hello\".reverse.upcase!", "\"hello\".reverse.swapcase"]
+
+Behold.code '1.5', 3.0
+#=> ["\"1.5\".to_f.*(2)"]
+```
+
 A `count:` keyword caps how many results come back (the default is 6) and `timeout:` overrides the search budget in seconds (the default is 3).
 
 ```ruby

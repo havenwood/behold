@@ -2,6 +2,7 @@
 
 require 'timeout'
 require_relative 'behold/arity_range'
+require_relative 'behold/chain'
 require_relative 'behold/version'
 
 module Behold
@@ -12,7 +13,7 @@ module Behold
                  eval instance_eval module_eval class_eval `
                  system exec spawn fork syscall exit exit! abort at_exit trap
                  load require require_relative autoload
-                 open write unlink mkdir rmdir chmod chown
+                 open write display unlink mkdir rmdir chmod chown
                  rm rm_rf rm_r remove_entry_secure
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
@@ -51,11 +52,18 @@ module Behold
             Block.new('{ _1 + 1 }', ->(element) { element + 1 }),
             Block.new('{ -_1 }', ->(element) { -element })].freeze
 
+  FIRST_STEPS = %i[to_f to_r to_c reverse upcase downcase capitalize swapcase sort
+                   chars bytes to_a to_s to_i flatten compact uniq abs chr ord strip
+                   chomp succ pred first last min max sum].freeze
+  CHAIN_RESULT_COUNT = 3
+
   class << self
     def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       receiver = from.inspect
       call(from, to, *more, count:, timeout:).map do |meth, *args|
-        if args.first.is_a?(Block)
+        if meth.is_a?(Chain)
+          "#{receiver}#{meth.render}"
+        elsif args.first.is_a?(Block)
           "#{receiver}.#{meth}#{args.first.render}"
         else
           arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
@@ -72,16 +80,20 @@ module Behold
           match(examples:, fuzz:, arg_count: index)
         end
 
-        best_matches([separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), two_args], count, timeout)
+        cheap = [separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples)]
+        best_matches([cheap, [chain_tuples(examples)], [two_args]], count, timeout)
       end
     end
 
     private
 
-    def best_matches(lazy_tries, count, timeout)
+    def best_matches(tiers, count, timeout)
       matches = []
       Timeout.timeout timeout do
-        lazy_matches(lazy_tries, count).each { |match| matches << match }
+        tiers.each do |tier|
+          lazy_matches(tier, count).each { |match| matches << match }
+          break unless matches.empty?
+        end
       end
 
       matches
@@ -190,6 +202,33 @@ module Behold
       BLOCK_METHODS.product(BLOCKS).lazy.filter_map do |meth, block|
         [meth, block] if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to:, &block) }
       end
+    end
+
+    def chain_tuples(examples)
+      receiver = examples.dig(0, 0)
+      FIRST_STEPS.select { |step| receiver.respond_to?(step) }.lazy.flat_map do |step|
+        stepped = step_examples(examples, step)
+        next [] unless stepped
+
+        separators = match(examples: stepped, fuzz: derived_args(stepped), arg_count: 1)
+        no_args, one_arg = FUZZES.first(2).map.with_index { |fuzz, index| match(examples: stepped, fuzz:, arg_count: index) }
+        lazy_matches([separators, no_args, one_arg], CHAIN_RESULT_COUNT).map { |second| Chain.new([[step], second]) }
+      end
+    end
+
+    def step_examples(examples, step)
+      examples.map do |from, to|
+        mid = step_value(deep_dup(from), step)
+        return nil if mid.nil? || mid == from || mid == to
+
+        [mid, to]
+      end
+    end
+
+    def step_value(from, step)
+      from.public_send(step)
+    rescue StandardError
+      nil
     end
 
     def numeric_tuples(from, to)

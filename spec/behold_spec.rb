@@ -62,6 +62,26 @@ describe Behold do
     assert_equal [1, 2, 3], eval(Behold.code(%w[a bb ccc], [1, 2, 3], timeout:).first)
   end
 
+  it 'falls back to a two-step chain when no single call works' do
+    sources = Behold.code('hello', 'OLLEH', ['world', 'DLROW'], timeout:)
+    refute_empty sources
+    assert_includes sources, '"hello".reverse.upcase'
+    sources.each { |source| assert_equal 'OLLEH', eval(source) }
+  end
+
+  it 'coerces a stringified number before arithmetic' do
+    sources = Behold.code('1.5', 3.0, timeout:)
+    refute_empty sources
+    assert(sources.any? { |source| source.include?('to_f') })
+    sources.each { |source| assert_equal 3.0, eval(source) }
+  end
+
+  it 'prefers a direct call over a fallback chain' do
+    tuples = Behold.call('shannon', 'Shannon', ['ruby', 'Ruby'], timeout:)
+    refute_empty tuples
+    refute(tuples.any? { |application| application.is_a?(Behold::Chain) })
+  end
+
   it 'ignores candidates that raise non-standard exceptions' do
     source = Class.new do
       def assert_empty = raise Minitest::Assertion, 'nope'

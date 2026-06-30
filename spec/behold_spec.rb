@@ -178,6 +178,24 @@ describe Behold do
     refute_empty results
     results.each { |chain| assert_equal 3.0, chain.apply(:'1.5') }
   end
+
+  it 'reproduces through a multi-step coercion round-trip' do
+    results = Behold.send(:route_tuples, [[:'5', '5.0']]).to_a
+    refute_empty results
+    results.each { |chain| assert_equal '5.0', chain.apply(:'5') }
+  end
+
+  it 'bridges a numeric gap after coercion with a derived delta' do
+    results = Behold.send(:route_tuples, [[false, 7.5]]).to_a
+    refute_empty results
+    results.each { |chain| assert_equal 7.5, chain.apply(false) }
+  end
+
+  it 'routes a scalar to an array target via chars' do
+    results = Behold.send(:route_tuples, [[12, %w[1 2 1 2]]]).to_a
+    refute_empty results
+    results.each { |chain| assert_equal %w[1 2 1 2], chain.apply(12) }
+  end
 end
 
 describe Behold::Literal do

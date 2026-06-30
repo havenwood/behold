@@ -66,8 +66,9 @@ module Behold
                    chars bytes to_a to_s to_i flatten compact uniq abs chr ord strip
                    chomp succ pred first last min max sum].freeze
   CHAIN_RESULT_COUNT = 3
+  ROUTE_DEPTH = 3
   CONVERSIONS = { to_i: Integer, to_f: Float, to_r: Rational, to_c: Complex,
-                  to_s: String, to_a: Array, to_h: Hash, to_sym: Symbol }.freeze
+                  to_s: String, to_a: Array, to_h: Hash, to_sym: Symbol, chars: Array }.freeze
   KWARGS = [{ half: :up }, { half: :down }, { half: :even }, { chomp: true }].freeze
 
   class << self
@@ -253,38 +254,57 @@ module Behold
     end
 
     def route_tuples(examples)
-      route = coercion_route(examples.dig(0, 0).class, examples.dig(0, 1).class)
-      return [] unless route
+      routes = coercion_routes(examples.dig(0, 0).class, examples.dig(0, 1).class)
+      return [] if routes.empty?
 
-      routed = examples.map { |from, _to| route.reduce(deep_dup(from)) { |value, step| step_value(value, step) } }
-      return [] if routed.any?(&:nil?)
+      pure = routes.lazy.filter_map do |route|
+        routed = routed_values(examples, route)
+        next unless routed
+
+        Chain.new(route.map { |step| Call.new(meth: step) }) if examples.each_index.all? { |index| check_method(:itself, from: routed[index], to: examples[index].last) }
+      end.first(CHAIN_RESULT_COUNT)
+      return pure unless pure.empty?
+
+      route = routes.first
+      routed = routed_values(examples, route)
+      return [] unless routed
 
       calls = route.map { |step| Call.new(meth: step) }
       bridge = examples.map.with_index { |(_from, to), index| [routed[index], to] }
-      return [Chain.new(calls)] if bridge.all? { |mid, to| check_method(:itself, from: mid, to:) }
-
       separators = match(examples: bridge, fuzz: derived_args(bridge), arg_count: 1)
       no_args, one_arg = FUZZES.first(2).map.with_index { |fuzz, index| match(examples: bridge, fuzz:, arg_count: index) }
-      lazy_matches([separators, no_args, one_arg], CHAIN_RESULT_COUNT).map { |second| Chain.new(calls + [second]) }
+      lazy_matches([separators, no_args, one_arg, numeric_bridge(bridge)], CHAIN_RESULT_COUNT).map { |second| Chain.new(calls + [second]) }
     end
 
-    def coercion_route(from_class, to_class)
-      return if from_class == to_class
+    def coercion_routes(from_class, to_class)
+      return [] if from_class == to_class
 
+      routes = []
       queue = [[from_class, []]]
-      seen = { from_class => true }
       until queue.empty?
         klass, route = queue.shift
         CONVERSIONS.each do |step, target|
           next unless klass.method_defined?(step)
-          return route + [step] if target == to_class
-          next if seen[target]
+          next if target == klass
 
-          seen[target] = true
-          queue << [target, route + [step]]
+          path = route + [step]
+          routes << path if target == to_class
+          queue << [target, path] if path.length < ROUTE_DEPTH
         end
       end
-      nil
+      routes
+    end
+
+    def routed_values(examples, route)
+      values = examples.map { |from, _to| route.reduce(deep_dup(from)) { |value, step| step_value(value, step) } }
+      values unless values.any?(&:nil?)
+    end
+
+    def numeric_bridge(bridge)
+      from, to = bridge.first
+      numeric_tuples(from, to).lazy.filter_map do |meth, *args|
+        Call.new(meth:, args:) if bridge.all? { |ex_from, ex_to| check_method(meth, *args, from: soft_dup(ex_from), to: ex_to) }
+      end
     end
 
     def numeric_tuples(from, to)

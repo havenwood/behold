@@ -49,7 +49,7 @@ module Behold
   class << self
     def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       receiver = from.inspect
-      call(from, to, *more, count: count, timeout: timeout).map do |meth, *args|
+      call(from, to, *more, count:, timeout:).map do |meth, *args|
         if args.first.is_a?(Block)
           "#{receiver}.#{meth}#{args.first.render}"
         else
@@ -62,9 +62,9 @@ module Behold
     def call(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       examples = [[from, to], *more]
       black_hole do
-        separators = match(examples: examples, fuzz: derived_args(examples), arg_count: 1)
+        separators = match(examples:, fuzz: derived_args(examples), arg_count: 1)
         no_args, one_arg, two_args = FUZZES.map.with_index do |fuzz, index|
-          match(examples: examples, fuzz: fuzz, arg_count: index)
+          match(examples:, fuzz:, arg_count: index)
         end
 
         best_matches([separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), two_args], count, timeout)
@@ -88,7 +88,7 @@ module Behold
       candidates = arg_methods(soft_dup(examples.dig(0, 0)), arg_count)
       fuzz.lazy.flat_map do |args|
         candidates
-          .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: soft_dup(from), to: to) } }
+          .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: soft_dup(from), to:) } }
           .map { |meth| [meth, *args] }
       end
     end
@@ -175,7 +175,7 @@ module Behold
       return [] unless examples.dig(0, 0).respond_to?(:map)
 
       BLOCK_METHODS.product(BLOCKS).lazy.filter_map do |meth, block|
-        [meth, block] if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to: to, &block) }
+        [meth, block] if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to:, &block) }
       end
     end
 

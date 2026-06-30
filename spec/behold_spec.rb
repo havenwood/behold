@@ -123,3 +123,29 @@ describe Behold do
     assert_equal [['a'], { k: 'b' }], original
   end
 end
+
+describe Behold::Call do
+  it 'applies a no-arg call' do
+    assert_equal 'HI', Behold::Call.new(meth: :upcase).apply('hi')
+  end
+
+  it 'applies positional args' do
+    assert_equal 42, Behold::Call.new(meth: :+, args: [1]).apply(41)
+  end
+
+  it 'applies keyword args' do
+    assert_equal 3, Behold::Call.new(meth: :round, kwargs: { half: :up }).apply(2.5)
+  end
+
+  it 'renders source against a receiver' do
+    assert_equal '2.5.round(half: :up)', Behold::Call.new(meth: :round, kwargs: { half: :up }).render('2.5')
+  end
+
+  it 'inspects as the call fragment' do
+    assert_equal 'round(half: :up)', Behold::Call.new(meth: :round, kwargs: { half: :up }).inspect
+  end
+
+  it 'is value-equal under defaults' do
+    assert_equal Behold::Call.new(meth: :answer, args: [], kwargs: {}, block: nil), Behold::Call.new(meth: :answer)
+  end
+end

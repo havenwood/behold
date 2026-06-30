@@ -2,6 +2,7 @@
 
 require 'timeout'
 require_relative 'behold/arity_range'
+require_relative 'behold/call'
 require_relative 'behold/chain'
 require_relative 'behold/version'
 

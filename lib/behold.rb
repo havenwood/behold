@@ -47,9 +47,9 @@ module Behold
             Block.new('{ -_1 }', ->(element) { -element })].freeze
 
   class << self
-    def code(from, to, *more, timeout: DEFAULT_TIMEOUT)
+    def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       receiver = from.inspect
-      call(from, to, *more, timeout: timeout).map do |meth, *args|
+      call(from, to, *more, count: count, timeout: timeout).map do |meth, *args|
         if args.first.is_a?(Block)
           "#{receiver}.#{meth}#{args.first.render}"
         else
@@ -59,7 +59,7 @@ module Behold
       end
     end
 
-    def call(from, to, *more, timeout: DEFAULT_TIMEOUT)
+    def call(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       examples = [[from, to], *more]
       black_hole do
         separators = match(examples: examples, fuzz: derived_args(examples), arg_count: 1)
@@ -67,16 +67,16 @@ module Behold
           match(examples: examples, fuzz: fuzz, arg_count: index)
         end
 
-        best_matches([separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), two_args], timeout)
+        best_matches([separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), two_args], count, timeout)
       end
     end
 
     private
 
-    def best_matches(lazy_tries, timeout)
+    def best_matches(lazy_tries, count, timeout)
       matches = []
       Timeout.timeout timeout do
-        lazy_matches(lazy_tries).each { |match| matches << match }
+        lazy_matches(lazy_tries, count).each { |match| matches << match }
       end
 
       matches
@@ -106,8 +106,8 @@ module Behold
       end
     end
 
-    def lazy_matches(tries)
-      tries.reduce(:+).lazy.uniq.take(RESULT_COUNT)
+    def lazy_matches(tries, count)
+      tries.reduce(:+).lazy.uniq.take(count)
     end
 
     def check_method(meth, *args, from:, to:, &block)

@@ -20,6 +20,10 @@ describe Behold do
     assert_equal 25, eval(Behold.code(5, 25, timeout:).first)
   end
 
+  it 'caps the number of results' do
+    assert_equal 2, Behold.call(5, 25, count: 2, timeout:).size
+  end
+
   it 'narrows to transforms that satisfy every example' do
     tuples = Behold.call(5, 25, [3, 9], timeout:)
     refute_empty tuples

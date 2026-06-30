@@ -67,9 +67,10 @@ Behold.code %w[a bb ccc], [1, 2, 3]
 #=> ["[\"a\", \"bb\", \"ccc\"].map(&:length)", "[\"a\", \"bb\", \"ccc\"].map(&:size)"]
 ```
 
-A `timeout:` keyword overrides the search budget in seconds (the default is 3).
+A `count:` keyword caps how many results come back (the default is 6) and `timeout:` overrides the search budget in seconds (the default is 3).
 
 ```ruby
+Behold.call 5, 25, count: 3
 Behold.call 1, 2, timeout: 1
 ```
 

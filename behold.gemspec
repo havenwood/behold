@@ -12,11 +12,11 @@ Gem::Specification.new do |spec|
   spec.summary       = 'I looked, and there before me was a gem.'
   spec.homepage      = 'https://github.com/havenwood/behold'
   spec.licenses      = %w[MIT]
+  spec.required_ruby_version = '>= 3.2'
   spec.files         = %w[Gemfile LICENSE Rakefile README.md] + Dir['{lib,spec}/**/*.rb', 'bin/*']
   spec.require_paths = %w[lib]
   spec.executables   = %w[behold]
 
-  spec.add_dependency 'bigdecimal'
   spec.add_dependency 'prism'
   spec.add_development_dependency 'minitest', '~> 5'
   spec.add_development_dependency 'minitest-proveit', '~> 1'

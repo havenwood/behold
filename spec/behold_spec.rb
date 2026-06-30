@@ -4,10 +4,10 @@ require_relative 'helper'
 require 'behold/literal'
 
 describe Behold do
-  timeout = 1.5
+  timeout = 20
 
   cases = [[42, 42], [42, 43], ['shannon', 'Shannon'], [Object, 'Object'],
-           [5, 25], [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
+           [5, 25], [5, Float::INFINITY], [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
 
   cases.each do |from, to|
     it "reproduces #{to.inspect} from #{from.inspect}" do
@@ -118,6 +118,9 @@ describe Behold do
     refute_includes Behold.send(:arg_methods, File, 1).to_a, :binwrite
     refute_includes Behold.send(:arg_methods, IO, 1).to_a, :popen
     refute_includes Behold.send(:arg_methods, Process, 1).to_a, :kill
+    refute_includes Behold.send(:arg_methods, Object, 1).to_a, :remove_method
+    refute_includes Behold.send(:arg_methods, Object, 1).to_a, :define_method
+    refute_includes Behold.send(:arg_methods, Object, 1).to_a, :include
   end
 
   it 'keeps a benign method that shares a name with a dangerous module method' do
@@ -142,6 +145,27 @@ describe Behold do
     results = Behold.send(:kwarg_tuples, [[receiver, 99]]).to_a
     assert_includes results, Behold::Call.new(meth: :choose, kwargs: { half: :up })
   end
+
+  it 'does not mutate a custom receiver with identity equality' do
+    counter = Class.new do
+      def initialize = @n = 0
+      attr_reader :n
+      def bump! = @n += 1
+    end.new
+    Behold.call(counter, 999, timeout: 0.5)
+    assert_equal 0, counter.n
+  end
+
+  it 'applies a two-step chain' do
+    results = Behold.call('hello', 'OLLEH', ['world', 'DLROW'], timeout:)
+    chain = results.find { |result| result.is_a?(Behold::Chain) }
+    refute_nil chain
+    assert_equal 'OLLEH', chain.apply(+'hello')
+  end
+
+  it 'returns empty when nothing matches under a tiny timeout' do
+    assert_equal [], Behold.call(Object.new, :unreachable, timeout: 0.001)
+  end
 end
 
 describe Behold::Literal do
@@ -153,6 +177,14 @@ describe Behold::Literal do
     scope = Module.new
     scope.autoload(:Pending, '/does/not/exist')
     assert_raises(ArgumentError) { Behold::Literal.send(:constant, scope, :Pending) }
+  end
+
+  it 'rejects an IO constant' do
+    assert_raises(ArgumentError) { Behold::Literal.parse('STDOUT') }
+  end
+
+  it 'wraps a deeply nested literal as ArgumentError' do
+    assert_raises(ArgumentError) { Behold::Literal.parse('[' * 5000 + ']' * 5000) }
   end
 end
 

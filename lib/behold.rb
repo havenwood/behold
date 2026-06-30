@@ -16,6 +16,14 @@ module Behold
                  load require require_relative autoload
                  open write display unlink mkdir rmdir chmod chown
                  rm rm_rf rm_r remove_entry_secure
+                 define_method define_singleton_method alias_method remove_method undef_method
+                 attr attr_reader attr_writer attr_accessor
+                 include prepend extend using refine
+                 const_set remove_const class_variable_set instance_variable_set
+                 remove_class_variable remove_instance_variable
+                 private public protected module_function private_constant public_constant
+                 private_class_method public_class_method
+                 freeze deprecate_constant set_temporary_name
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
   FORBIDDEN_OWNER_CLASSES = [Dir, File, IO, Process].map(&:singleton_class).freeze
@@ -31,7 +39,7 @@ module Behold
           :join, :<<, :+, :-, :*, :inject, :new,
           nil, true, false,
           nil..nil, 1..10, 'a'..'f',
-          Time.now, Object, Module, Kernel,
+          Object, Module, Kernel,
           *-10..-1, *11..101, *-101..11, 1_000, 10_000, -1_000, -10_000].uniq.freeze
   SINGLE_ARG_FUZZ = FUZZ.map { |arg| [arg] }.freeze
   DOUBLE_ARG_FUZZ = FUZZ.repeated_permutation(2).freeze
@@ -131,8 +139,10 @@ module Behold
     end
 
     def soft_dup(from)
+      return from if from.is_a?(Module)
+
       duped_from = from.dup
-      from == duped_from ? duped_from : from
+      duped_from.equal?(from) ? from : duped_from
     rescue StandardError
       from
     end

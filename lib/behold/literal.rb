@@ -10,6 +10,8 @@ module Behold
         raise ArgumentError, "invalid literal: #{source}" unless result.success?
 
         evaluate single_statement(result.value.statements)
+      rescue SystemStackError
+        raise ArgumentError, "literal too deeply nested: #{source}"
       end
 
       private
@@ -45,7 +47,10 @@ module Behold
       def constant(scope, name)
         raise ArgumentError, "unknown constant: #{name}" unless scope.is_a?(Module) && scope.const_defined?(name, false) && !scope.autoload?(name, false)
 
-        scope.const_get(name, false)
+        value = scope.const_get(name, false)
+        raise ArgumentError, "unsupported constant: #{name}" if value.is_a?(IO)
+
+        value
       end
 
       def single_statement(statements)

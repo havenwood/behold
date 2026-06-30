@@ -61,16 +61,7 @@ module Behold
   class << self
     def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
       receiver = from.inspect
-      call(from, to, *more, count:, timeout:).map do |meth, *args|
-        if meth.is_a?(Chain)
-          "#{receiver}#{meth.render}"
-        elsif args.first.is_a?(Block)
-          "#{receiver}.#{meth}#{args.first.render}"
-        else
-          arguments = "(#{args.map(&:inspect).join ', '})" unless args.empty?
-          "#{receiver}.#{meth}#{arguments}"
-        end
-      end
+      call(from, to, *more, count:, timeout:).map { |result| result.render(receiver) }
     end
 
     def call(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
@@ -107,7 +98,7 @@ module Behold
       fuzz.lazy.flat_map do |args|
         candidates
           .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: deep_dup(from), to:) } }
-          .map { |meth| [meth, *args] }
+          .map { |meth| Call.new(meth:, args:) }
       end
     end
 
@@ -192,8 +183,8 @@ module Behold
 
     def derived_tuples(examples)
       from, to = examples.first
-      (numeric_tuples(from, to) + replacement_tuples(from, to)).lazy.select do |meth, *args|
-        examples.all? { |ex_from, ex_to| check_method(meth, *args, from: soft_dup(ex_from), to: ex_to) }
+      (numeric_tuples(from, to) + replacement_tuples(from, to)).lazy.filter_map do |meth, *args|
+        Call.new(meth:, args:) if examples.all? { |ex_from, ex_to| check_method(meth, *args, from: soft_dup(ex_from), to: ex_to) }
       end
     end
 
@@ -201,7 +192,7 @@ module Behold
       return [] unless examples.dig(0, 0).respond_to?(:map)
 
       BLOCK_METHODS.product(BLOCKS).lazy.filter_map do |meth, block|
-        [meth, block] if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to:, &block) }
+        Call.new(meth:, block:) if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to:, &block) }
       end
     end
 
@@ -213,7 +204,7 @@ module Behold
 
         separators = match(examples: stepped, fuzz: derived_args(stepped), arg_count: 1)
         no_args, one_arg = FUZZES.first(2).map.with_index { |fuzz, index| match(examples: stepped, fuzz:, arg_count: index) }
-        lazy_matches([separators, no_args, one_arg], CHAIN_RESULT_COUNT).map { |second| Chain.new([[step], second]) }
+        lazy_matches([separators, no_args, one_arg], CHAIN_RESULT_COUNT).map { |second| Chain.new([Call.new(meth: step), second]) }
       end
     end
 

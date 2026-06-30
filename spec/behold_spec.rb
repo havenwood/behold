@@ -25,18 +25,18 @@ describe Behold do
   end
 
   it 'narrows to transforms that satisfy every example' do
-    tuples = Behold.call(5, 25, [3, 9], timeout:)
-    refute_empty tuples
-    tuples.each do |meth, *args|
-      assert_equal 25, 5.public_send(meth, *args)
-      assert_equal 9, 3.public_send(meth, *args)
+    results = Behold.call(5, 25, [3, 9], timeout:)
+    refute_empty results
+    results.each do |result|
+      assert_equal 25, result.apply(5)
+      assert_equal 9, result.apply(3)
     end
   end
 
   it 'narrows a string transform across examples' do
-    tuples = Behold.call(+'shannon', 'Shannon', [+'ruby', 'Ruby'], timeout:)
-    refute_empty tuples
-    tuples.each { |meth, *args| assert_equal 'Shannon', (+'shannon').public_send(meth, *args) }
+    results = Behold.call(+'shannon', 'Shannon', [+'ruby', 'Ruby'], timeout:)
+    refute_empty results
+    results.each { |result| assert_equal 'Shannon', result.apply(+'shannon') }
   end
 
   it 'derives separators from the example' do
@@ -60,6 +60,12 @@ describe Behold do
   it 'synthesizes blocks' do
     assert_equal [1, 4, 9], eval(Behold.code([1, 2, 3], [1, 4, 9], timeout:).first)
     assert_equal [1, 2, 3], eval(Behold.code(%w[a bb ccc], [1, 2, 3], timeout:).first)
+  end
+
+  it 'renders a two-step chain' do
+    sources = Behold.code('hello', 'OLLEH', ['world', 'DLROW'], timeout:)
+    refute_empty sources
+    sources.each { |source| assert_equal 'OLLEH', eval(source) }
   end
 
   it 'falls back to a two-step chain when no single call works' do
@@ -88,7 +94,7 @@ describe Behold do
       def answer = 42
     end.new
 
-    assert_includes Behold.call(source, 42, timeout:), [:answer]
+    assert_includes Behold.call(source, 42, timeout:), Behold::Call.new(meth: :answer)
   end
 
   it 'matches numbers by type-exact value' do

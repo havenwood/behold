@@ -62,12 +62,6 @@ describe Behold do
     assert_equal [1, 2, 3], eval(Behold.code(%w[a bb ccc], [1, 2, 3], timeout:).first)
   end
 
-  it 'renders a two-step chain' do
-    sources = Behold.code('hello', 'OLLEH', ['world', 'DLROW'], timeout:)
-    refute_empty sources
-    sources.each { |source| assert_equal 'OLLEH', eval(source) }
-  end
-
   it 'falls back to a two-step chain when no single call works' do
     sources = Behold.code('hello', 'OLLEH', ['world', 'DLROW'], timeout:)
     refute_empty sources
@@ -83,9 +77,9 @@ describe Behold do
   end
 
   it 'prefers a direct call over a fallback chain' do
-    tuples = Behold.call('shannon', 'Shannon', ['ruby', 'Ruby'], timeout:)
-    refute_empty tuples
-    refute(tuples.any? { |application| application.is_a?(Behold::Chain) })
+    results = Behold.call('shannon', 'Shannon', ['ruby', 'Ruby'], timeout:)
+    refute_empty results
+    refute(results.any? { |application| application.is_a?(Behold::Chain) })
   end
 
   it 'ignores candidates that raise non-standard exceptions' do

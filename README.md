@@ -20,22 +20,22 @@ gem install behold
 require 'behold'
 
 Behold.call 5, 25
-#=> [[:abs2], [:**, 2], [:pow, 2], [:*, 5], [:+, 20], [:lcm, 25]]
+#=> [abs2, **(2), pow(2), *(5), +(20), lcm(25)]
 
 Behold.call 'hi', 'hi!'
-#=> [[:+, "!"], [:<<, "!"], [:concat, "!"], [:append_as_bytes, "!"], [:<<, 33], [:concat, 33]]
+#=> [+("!"), <<("!"), concat("!"), append_as_bytes("!"), <<(33), concat(33)]
 
 Behold.call [1, 2, 3], '1,2,3'
-#=> [[:*, ","], [:join, ","]]
+#=> [*(","), join(",")]
 
 Behold.call Object, 'Object'
-#=> [[:inspect], [:to_s], [:name]]
+#=> [inspect, to_s, name]
 
 Behold.call 1, 2
-#=> [[:next], [:succ], [:<<, 1], [:+, 1], [:*, 2], [:lcm, 2]]
+#=> [next, succ, <<(1), +(1), *(2), lcm(2)]
 
 Behold.call 'BBQ', ['B', 'B', 'Q']
-#=> [[:split, ""], [:chars], [:grapheme_clusters], [:rpartition, "B"], [:lines, "B"], [:split, //]]
+#=> [split(""), chars, grapheme_clusters, rpartition("B"), lines("B"), split(//)]
 
 puts Behold.code 'BBQ', ['B', 'B', 'Q']
 #>> "BBQ".split("")
@@ -52,7 +52,7 @@ Give extra `[from, to]` pairs and Behold keeps only transforms that satisfy ever
 
 ```ruby
 Behold.call 'shannon', 'Shannon', ['ruby', 'Ruby']
-#=> [[:capitalize], [:capitalize!]]
+#=> [capitalize, capitalize!]
 
 Behold.code [1, 2, 3], '1::2::3'
 #=> ["[1, 2, 3].*(\"::\")", "[1, 2, 3].join(\"::\")"]
@@ -61,19 +61,19 @@ Behold.code 'foo bar', 'foo::bar'
 #=> ["\"foo bar\".gsub(\" \", \"::\")", "\"foo bar\".sub(\" \", \"::\")"]
 
 Behold.code [1, 2, 3], [1, 4, 9]
-#=> ["[1, 2, 3].map { _1 ** 2 }", "[1, 2, 3].flat_map { _1 ** 2 }"]
+#=> ["[1, 2, 3].map { _1 ** 2 }", "[1, 2, 3].flat_map { _1 ** 2 }", "[1, 2, 3].filter_map { _1 ** 2 }"]
 
 Behold.code %w[a bb ccc], [1, 2, 3]
-#=> ["[\"a\", \"bb\", \"ccc\"].map(&:length)", "[\"a\", \"bb\", \"ccc\"].map(&:size)"]
+#=> ["[\"a\", \"bb\", \"ccc\"].map(&:length)", "[\"a\", \"bb\", \"ccc\"].map(&:size)", "[\"a\", \"bb\", \"ccc\"].flat_map(&:length)", "[\"a\", \"bb\", \"ccc\"].flat_map(&:size)", "[\"a\", \"bb\", \"ccc\"].filter_map(&:length)", "[\"a\", \"bb\", \"ccc\"].filter_map(&:size)"]
 ```
 
 ## Two-Step Fallbacks
 
-When no single call turns `from` into `to`, Behold falls back to a derived two-step chain. Direct calls always win, so a chain only appears when nothing simpler matches. The first step can coerce across types (`to_f`, `to_r`, `to_c`), so a stringified number can be parsed before arithmetic. `Behold.call` returns these as `Behold::Chain` values and `Behold.code` renders them as source.
+When no single call turns `from` into `to`, Behold falls back to a derived two-step chain. Direct calls always win, so a chain only appears when nothing simpler matches. The first step can coerce across types (`to_f`, `to_r`, `to_c`), so a stringified number can be parsed before arithmetic. `Behold.call` returns `Behold::Call` value objects (or `Behold::Chain` for two-step fallbacks), each responding to `apply(from)` and `render(receiver)`. `Behold.code` renders them as source strings.
 
 ```ruby
 Behold.code 'hello', 'OLLEH', ['world', 'DLROW']
-#=> ["\"hello\".reverse.upcase", "\"hello\".reverse.upcase!", "\"hello\".reverse.swapcase"]
+#=> ["\"hello\".reverse.upcase", "\"hello\".reverse.upcase!", "\"hello\".reverse.swapcase", "\"hello\".upcase.reverse!", "\"hello\".upcase.reverse", "\"hello\".swapcase.reverse!"]
 
 Behold.code '1.5', 3.0
 #=> ["\"1.5\".to_f.*(2)"]

@@ -33,6 +33,12 @@ describe Behold do
     end
   end
 
+  it 'narrows a string transform across examples' do
+    tuples = Behold.call(+'shannon', 'Shannon', [+'ruby', 'Ruby'], timeout:)
+    refute_empty tuples
+    tuples.each { |meth, *args| assert_equal 'Shannon', (+'shannon').public_send(meth, *args) }
+  end
+
   it 'derives separators from the example' do
     sources = Behold.code([1, 2, 3], '1::2::3', timeout:)
     refute_empty sources
@@ -80,5 +86,17 @@ describe Behold do
         Behold.send(:check_method, :stall, from: source, to: :never)
       end
     end
+  end
+
+  it 'never offers dangerous methods on a module receiver' do
+    candidates = Behold.send(:arg_methods, Kernel, 0).to_a
+    refute_includes candidates, :exit
+    refute_includes candidates, :system
+  end
+
+  it 'deep-dups so the search cannot mutate a from collection' do
+    original = ['a', 'b'].map(&:dup)
+    Behold.send(:deep_dup, original).first << 'x'
+    assert_equal %w[a b], original
   end
 end

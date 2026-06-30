@@ -7,8 +7,12 @@ require_relative 'behold/version'
 module Behold
   using ArityRange
 
-  FORBIDDEN = %i[__binding__ byebug debugger instance_eval pry rake_extension
+  FORBIDDEN = %i[__binding__ byebug debugger pry rake_extension
                  public_send __send__ send
+                 eval instance_eval module_eval class_eval `
+                 system exec spawn fork syscall exit exit! abort at_exit trap
+                 load require require_relative autoload
+                 rm rm_rf rm_r remove_entry_secure
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze
   NO_ARG_FUZZ = [[]].freeze
@@ -88,7 +92,7 @@ module Behold
       candidates = arg_methods(soft_dup(examples.dig(0, 0)), arg_count)
       fuzz.lazy.flat_map do |args|
         candidates
-          .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: soft_dup(from), to:) } }
+          .select { |meth| examples.all? { |from, to| check_method(meth, *args, from: deep_dup(from), to:) } }
           .map { |meth| [meth, *args] }
       end
     end
@@ -124,6 +128,14 @@ module Behold
       from == duped_from ? duped_from : from
     rescue StandardError
       from
+    end
+
+    def deep_dup(from)
+      case from
+      when Array then from.map { |element| deep_dup(element) }
+      when Hash then from.to_h { |key, value| [deep_dup(key), deep_dup(value)] }
+      else soft_dup(from)
+      end
     end
 
     def arg_methods(object, arg_count)

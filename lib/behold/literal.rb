@@ -7,9 +7,10 @@ module Behold
     class << self
       def parse(source)
         result = Prism.parse(source)
-        raise ArgumentError, "invalid literal: #{source}" unless result.success?
+        body = result.value.statements.body
+        raise ArgumentError, "invalid literal: #{source}" unless result.success? && body.one?
 
-        evaluate result.value.statements.body.first
+        evaluate body.first
       end
 
       private

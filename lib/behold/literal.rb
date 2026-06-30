@@ -7,10 +7,9 @@ module Behold
     class << self
       def parse(source)
         result = Prism.parse(source)
-        body = result.value.statements.body
-        raise ArgumentError, "invalid literal: #{source}" unless result.success? && body.one?
+        raise ArgumentError, "invalid literal: #{source}" unless result.success?
 
-        evaluate body.first
+        evaluate single_statement(result.value.statements)
       end
 
       private
@@ -30,7 +29,7 @@ module Behold
           node.elements.to_h { |assoc| assoc.is_a?(Prism::AssocNode) ? [evaluate(assoc.key), evaluate(assoc.value)] : evaluate(assoc) }
         when Prism::RangeNode
           Range.new(node.left && evaluate(node.left), node.right && evaluate(node.right), node.exclude_end?)
-        when Prism::ParenthesesNode then evaluate(node.body&.body&.first)
+        when Prism::ParenthesesNode then evaluate(single_statement(node.body))
         when Prism::ConstantReadNode then constant(Object, node.name)
         when Prism::ConstantPathNode then constant(node.parent ? evaluate(node.parent) : Object, node.name)
         else raise ArgumentError, "unsupported literal: #{node&.slice}"
@@ -41,6 +40,12 @@ module Behold
         raise ArgumentError, "unknown constant: #{name}" unless scope.is_a?(Module) && scope.const_defined?(name, false)
 
         scope.const_get(name, false)
+      end
+
+      def single_statement(statements)
+        raise ArgumentError, 'expected a single expression' unless statements.is_a?(Prism::StatementsNode) && statements.body.one?
+
+        statements.body.first
       end
     end
   end

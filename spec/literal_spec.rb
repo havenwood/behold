@@ -22,5 +22,6 @@ describe Behold::Literal do
     assert_raises(ArgumentError) { Behold::Literal.parse('[1, 2,') }
     assert_raises(ArgumentError) { Behold::Literal.parse('Nope::Nope') }
     assert_raises(ArgumentError) { Behold::Literal.parse('1; 2') }
+    assert_raises(ArgumentError) { Behold::Literal.parse('(1; 2)') }
   end
 end

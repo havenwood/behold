@@ -12,6 +12,7 @@ module Behold
                  eval instance_eval module_eval class_eval `
                  system exec spawn fork syscall exit exit! abort at_exit trap
                  load require require_relative autoload
+                 open write unlink mkdir rmdir chmod chown
                  rm rm_rf rm_r remove_entry_secure
                  shuffle shuffle! sample hash object_id __id__].freeze
   FORBIDDEN_OWNERS = %w[Minitest::Expectations].freeze

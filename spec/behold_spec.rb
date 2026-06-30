@@ -89,14 +89,17 @@ describe Behold do
   end
 
   it 'never offers dangerous methods on a module receiver' do
-    candidates = Behold.send(:arg_methods, Kernel, 0).to_a
-    refute_includes candidates, :exit
-    refute_includes candidates, :system
+    refute_includes Behold.send(:arg_methods, Kernel, 0).to_a, :exit
+    refute_includes Behold.send(:arg_methods, Kernel, 1).to_a, :system
+    refute_includes Behold.send(:arg_methods, File, 1).to_a, :unlink
+    refute_includes Behold.send(:arg_methods, File, 1).to_a, :open
   end
 
-  it 'deep-dups so the search cannot mutate a from collection' do
-    original = ['a', 'b'].map(&:dup)
-    Behold.send(:deep_dup, original).first << 'x'
-    assert_equal %w[a b], original
+  it 'deep-dups so the search cannot mutate a nested from collection' do
+    original = [['a'], { k: 'b' }]
+    copy = Behold.send(:deep_dup, original)
+    copy.first.first << 'x'
+    copy.last[:k] << 'y'
+    assert_equal [['a'], { k: 'b' }], original
   end
 end

@@ -128,6 +128,11 @@ describe Behold do
     copy.last[:k] << 'y'
     assert_equal [['a'], { k: 'b' }], original
   end
+
+  it 'derives keyword arguments the fuzz list lacks' do
+    results = Behold.send(:kwarg_tuples, [[2.5, 3]]).to_a
+    assert_includes results, Behold::Call.new(meth: :round, kwargs: { half: :up })
+  end
 end
 
 describe Behold::Call do

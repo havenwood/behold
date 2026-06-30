@@ -57,6 +57,7 @@ module Behold
                    chars bytes to_a to_s to_i flatten compact uniq abs chr ord strip
                    chomp succ pred first last min max sum].freeze
   CHAIN_RESULT_COUNT = 3
+  KWARGS = [{ half: :up }, { half: :down }, { half: :even }, { chomp: true }].freeze
 
   class << self
     def code(from, to, *more, count: RESULT_COUNT, timeout: DEFAULT_TIMEOUT)
@@ -72,7 +73,7 @@ module Behold
           match(examples:, fuzz:, arg_count: index)
         end
 
-        cheap = [separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples)]
+        cheap = [separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), kwarg_tuples(examples)]
         best_matches([cheap, [chain_tuples(examples)], [two_args]], count, timeout)
       end
     end
@@ -119,9 +120,9 @@ module Behold
       tries.reduce(:+).lazy.uniq.take(count)
     end
 
-    def check_method(meth, *args, from:, to:, &block)
+    def check_method(meth, *args, from:, to:, kwargs: {}, &block)
       operator = to.is_a?(Numeric) ? :eql? : :==
-      from.public_send(meth, *args.map { |arg| soft_dup(arg) }, &block).public_send(operator, to)
+      from.public_send(meth, *args.map { |arg| soft_dup(arg) }, **kwargs, &block).public_send(operator, to)
     rescue Timeout::Error, Timeout::ExitException, NoMemoryError, SignalException, SystemExit
       raise
     rescue Exception
@@ -193,6 +194,15 @@ module Behold
 
       BLOCK_METHODS.product(BLOCKS).lazy.filter_map do |meth, block|
         Call.new(meth:, block:) if examples.all? { |from, to| check_method(meth, from: soft_dup(from), to:, &block) }
+      end
+    end
+
+    def kwarg_tuples(examples)
+      candidates = arg_methods(soft_dup(examples.dig(0, 0)), 0)
+      candidates.flat_map do |meth|
+        KWARGS.filter_map do |kwargs|
+          Call.new(meth:, kwargs:) if examples.all? { |from, to| check_method(meth, from: deep_dup(from), to:, kwargs:) }
+        end
       end
     end
 

@@ -65,6 +65,11 @@ describe Behold do
     assert_includes Behold.call(source, 42, timeout:), [:answer]
   end
 
+  it 'matches numbers by type-exact value' do
+    refute Behold.send(:check_method, :*, 1.0, from: 1, to: 1)
+    assert Behold.send(:check_method, :*, 1, from: 1, to: 1)
+  end
+
   it 'keeps timeout errors from candidate calls' do
     source = Class.new do
       def stall = sleep

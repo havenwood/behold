@@ -25,10 +25,11 @@ module Behold
         when Prism::FalseNode then false
         when Prism::NilNode then nil
         when Prism::ArrayNode then node.elements.map { |element| evaluate element }
-        when Prism::HashNode then node.elements.to_h { |assoc| [evaluate(assoc.key), evaluate(assoc.value)] }
+        when Prism::HashNode
+          node.elements.to_h { |assoc| assoc.is_a?(Prism::AssocNode) ? [evaluate(assoc.key), evaluate(assoc.value)] : evaluate(assoc) }
         when Prism::RangeNode
           Range.new(node.left && evaluate(node.left), node.right && evaluate(node.right), node.exclude_end?)
-        when Prism::ParenthesesNode then evaluate(node.body.body.first)
+        when Prism::ParenthesesNode then evaluate(node.body&.body&.first)
         when Prism::ConstantReadNode then constant(Object, node.name)
         when Prism::ConstantPathNode then constant(node.parent ? evaluate(node.parent) : Object, node.name)
         else raise ArgumentError, "unsupported literal: #{node&.slice}"

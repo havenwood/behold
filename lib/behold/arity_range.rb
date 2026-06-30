@@ -8,9 +8,8 @@ module Behold
         req = kinds.count :req
         keyreq = kinds.count :keyreq
         opt = kinds.include?(:rest) ? Float::INFINITY : kinds.count(:opt)
-        keyopt = kinds.include?(:keyrest) ? Float::INFINITY : kinds.count(:key)
 
-        {arguments: req..req + opt, keywords: keyreq..keyreq + keyopt}
+        {arguments: req..req + opt, keywords: keyreq}
       end
     end
   end

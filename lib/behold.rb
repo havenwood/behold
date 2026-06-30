@@ -26,7 +26,7 @@ module Behold
           Time.now, Object, Module, Kernel,
           *-10..-1, *11..101, *-101..11, 1_000, 10_000, -1_000, -10_000].uniq.freeze
   SINGLE_ARG_FUZZ = FUZZ.map { |arg| [arg] }.freeze
-  DOUBLE_ARG_FUZZ = FUZZ.repeated_permutation(2).to_a.freeze
+  DOUBLE_ARG_FUZZ = FUZZ.repeated_permutation(2).freeze
   FUZZES = [NO_ARG_FUZZ, SINGLE_ARG_FUZZ, DOUBLE_ARG_FUZZ].freeze
   RESULT_COUNT = 6
   DEFAULT_TIMEOUT = 3
@@ -134,7 +134,7 @@ module Behold
         next if FORBIDDEN_OWNERS.include? method.owner.name
 
         arity = method.arity_range
-        arity.fetch(:keywords).min.zero? && arity.fetch(:arguments).cover?(arg_count)
+        arity.fetch(:keywords).zero? && arity.fetch(:arguments).cover?(arg_count)
       end.lazy
     end
 

@@ -9,7 +9,7 @@ describe Behold do
 
   cases = [[42, 42], [42, 43], ['shannon', 'Shannon'], [Object, 'Object'],
            [5, 25], [5, Float::INFINITY], [Float::INFINITY, 'Infinity'],
-           [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
+           [:'1.5', 3.0], [[1, 2, 3], '1,2,3'], ['BBQ', %w[B B Q]]]
 
   cases.each do |from, to|
     it "reproduces #{to.inspect} from #{from.inspect}" do
@@ -171,6 +171,12 @@ describe Behold do
 
   it 'returns empty when nothing matches under a tiny timeout' do
     assert_equal [], Behold.call(Object.new, :unreachable, timeout: 0.001)
+  end
+
+  it 'routes to the target class through coercion' do
+    results = Behold.send(:route_tuples, [[:'1.5', 3.0]]).to_a
+    refute_empty results
+    results.each { |chain| assert_equal 3.0, chain.apply(:'1.5') }
   end
 end
 

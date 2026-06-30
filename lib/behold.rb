@@ -66,6 +66,8 @@ module Behold
                    chars bytes to_a to_s to_i flatten compact uniq abs chr ord strip
                    chomp succ pred first last min max sum].freeze
   CHAIN_RESULT_COUNT = 3
+  CONVERSIONS = { to_i: Integer, to_f: Float, to_r: Rational, to_c: Complex,
+                  to_s: String, to_a: Array, to_h: Hash, to_sym: Symbol }.freeze
   KWARGS = [{ half: :up }, { half: :down }, { half: :even }, { chomp: true }].freeze
 
   class << self
@@ -83,7 +85,7 @@ module Behold
         end
 
         cheap = [separators, no_args, block_tuples(examples), one_arg, derived_tuples(examples), kwarg_tuples(examples)]
-        best_matches([cheap, [chain_tuples(examples)], [two_args]], count, timeout)
+        best_matches([cheap, [chain_tuples(examples)], [two_args], [route_tuples(examples)]], count, timeout)
       end
     end
 
@@ -247,6 +249,41 @@ module Behold
     def step_value(from, step)
       from.public_send(step)
     rescue StandardError
+      nil
+    end
+
+    def route_tuples(examples)
+      route = coercion_route(examples.dig(0, 0).class, examples.dig(0, 1).class)
+      return [] unless route
+
+      routed = examples.map { |from, _to| route.reduce(deep_dup(from)) { |value, step| step_value(value, step) } }
+      return [] if routed.any?(&:nil?)
+
+      calls = route.map { |step| Call.new(meth: step) }
+      bridge = examples.map.with_index { |(_from, to), index| [routed[index], to] }
+      return [Chain.new(calls)] if bridge.all? { |mid, to| check_method(:itself, from: mid, to:) }
+
+      separators = match(examples: bridge, fuzz: derived_args(bridge), arg_count: 1)
+      no_args, one_arg = FUZZES.first(2).map.with_index { |fuzz, index| match(examples: bridge, fuzz:, arg_count: index) }
+      lazy_matches([separators, no_args, one_arg], CHAIN_RESULT_COUNT).map { |second| Chain.new(calls + [second]) }
+    end
+
+    def coercion_route(from_class, to_class)
+      return if from_class == to_class
+
+      queue = [[from_class, []]]
+      seen = { from_class => true }
+      until queue.empty?
+        klass, route = queue.shift
+        CONVERSIONS.each do |step, target|
+          next unless klass.method_defined?(step)
+          return route + [step] if target == to_class
+          next if seen[target]
+
+          seen[target] = true
+          queue << [target, route + [step]]
+        end
+      end
       nil
     end
 
